@@ -151,6 +151,39 @@ def send_review_mail(user, review_request, subject, in_reply_to,
     context['domain'] = current_site.domain
     context['domain_method'] = domain_method
     context['review_request'] = review_request
+
+    # should really (add to) repository and add include raw diffs option
+    # for now check scm type or always do it!
+    include_raw_diff=True
+    #include_raw_diff=False ## DEBUG FIXME REMOVE!
+    ## NOTE ea-ip list does appear to retain (diff) attachments see http://lists.ingres.prv/mailman/private/ip-ea/2008-October/001279.html
+    ## test list does NOT!
+    attachment_message='Diffs attached'
+    emaildiffs_inline=True ## if False make an attachment
+    context['raw_diff']=''
+    #context['raw_diff']='debug raw diff FIXME REMOVE'
+    if include_raw_diff:
+        ## Other option, instead of a flag "include_raw_diff" could lazy evaluate
+        ## http://pyds.muensterland.org/ has a nice short one (only needs minor cleanup, and I already have a cleaned up copy)
+        diffset = review_request.diffset_history.diffsets.latest()
+        raw_diff = review_request.repository.get_scmtool().get_parser('').raw_diff(diffset)
+        if emaildiffs_inline and isinstance(raw_diff, str):
+            try:
+                _ = raw_diff.decode('us-ascii') # could check repository encoding type......
+            except UnicodeDecodeError:
+                # non-ASCII data in diff, email is (probably) utf8 and
+                # so will not display inline. Switch to an attachment
+                emaildiffs_inline=False ## if False make an attachment
+                attachment_message='Diffs contain non-ASCII characters/bytes, unable to determine encoding. See attachment.'
+        if emaildiffs_inline:
+            context['raw_diff']=raw_diff
+        else:
+            # attach
+            context['raw_diff']=attachment_message
+
+
+    # Ingres customization goes here, e.g. raw diffs, facilities...
+
     text_body = render_to_string(text_template_name, context)
     html_body = render_to_string(html_template_name, context)
 
@@ -173,6 +206,10 @@ def send_review_mail(user, review_request, subject, in_reply_to,
     message = SpiffyEmailMessage(subject.strip(), text_body, html_body,
                                  from_email, list(to_field), list(cc_field),
                                  in_reply_to, headers)
+
+    if include_raw_diff and not emaildiffs_inline:
+        message.attach('diff.diff', raw_diff, 'text/x-diff')
+
     try:
         message.send()
     except Exception, e:
