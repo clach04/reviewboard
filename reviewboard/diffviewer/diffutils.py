@@ -992,6 +992,8 @@ def get_diff_files(diffset, filediff=None, interdiffset=None,
 
     files = []
 
+    tool = diffset.repository.get_scmtool()
+
     for parts in filediff_parts:
         filediff, interfilediff, force_interdiff = parts
 
@@ -1042,6 +1044,7 @@ def get_diff_files(diffset, filediff=None, interdiffset=None,
             'deleted': filediff.deleted,
             'newfile': newfile,
             'index': len(files),
+            'formatted_revision': tool.format_revision(filediff),
         }
 
         if load_chunks:

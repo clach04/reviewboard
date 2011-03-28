@@ -9,6 +9,9 @@ This is an automatically generated e-mail. To reply, visit:
 (Updated {{review_request.time_emailed}})
 
 {% endif %}
+
+SCMTOOL {{ review_request.repository.get_scmtool.scmtoolname }}
+
 Review request for {% reviewer_list review_request %}.
 
 {% if change_text %}
@@ -18,8 +21,24 @@ Changes
 {{change_text}}
 {% endif %}
 
-Summary{% if changes %}{% if changes.summary or changes.description %} (updated){% endif %}{% endif %}
--------
+{% if review_request.branch %}
+Branch
+------
+
+{{ review_request.branch }}
+
+{% endif %}
+
+Change author
+-------------
+
+{% ifnotequal review_request.submitter.first_name "" %}{{review_request.submitter.first_name}} {{review_request.submitter.last_name}}{% else %}{{review_request.submitter.username}}{% endifnotequal %}
+
+Change Description{% if changes %}{% if changes.summary or changes.description %} (updated){% endif %}{% endif %}
+------------------
+
+Format before submission with:
+    !}fmt -w 70
 
 {{ review_request.description }}
 
@@ -28,14 +47,6 @@ This addresses bug{{ review_request.get_bug_list|length|pluralize }} {{ review_r
     {{ bug|bug_url:review_request }}{% endfor %}
 {% endifnotequal %}
 {% endifnotequal %}
-
-
-Diffs{% if changes and changes.diff %} (updated){% endif %}
------
-{% for filediff in review_request.diffset_history.diffsets.latest.files.all %}
-  {{ filediff.source_file }} {{ filediff.source_revision }} {% endfor %}
-
-Diff: {{domain_method}}://{{domain}}{{ review_request.get_absolute_url }}diff
 
 
 Testing{% if changes and changes.testing_done %} (updated){% endif %}
@@ -52,8 +63,15 @@ Screenshots{% if changes and changes.screenshots %} (updated){% endif %}
 
 {% endif %}
 
-Thanks,
+Diffs{% if changes and changes.diff %} (updated){% endif %}
+-----
+{% for filediff in review_request.diffset_history.diffsets.latest.files.all %}
+  {{ filediff.source_file }} {{ filediff.source_revision }} {% endfor %}
 
-{% ifnotequal review_request.submitter.first_name "" %}{{review_request.submitter.first_name}}{% else %}{{review_request.submitter.username}}{% endifnotequal %}
+Diff: {{domain_method}}://{{domain}}{{ review_request.get_absolute_url }}diff
+
+
+{{ raw_diff }}
+
 {% endcondense %}
 {% endautoescape %}

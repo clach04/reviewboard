@@ -60,6 +60,10 @@ class SCMTool(object):
     def __init__(self, repository):
         self.repository = repository
 
+        ## templates can not access __ objects so make an explict named one
+        self.classname = self.__class__.__name__
+        self.scmtoolname = self.classname
+
     def get_file(self, path, revision=None):
         raise NotImplementedError
 
@@ -97,6 +101,18 @@ class SCMTool(object):
     def get_parser(self, data):
         return diffparser.DiffParser(data)
 
+    def format_revision(self, filediff):
+        """Returns a string of the file revision.
+        Subclasses may override with the SCM specific expected format.
+        For example; for rev 123, SVN may return 'r123'
+        """
+        if filediff.source_revision == PRE_CREATION:
+            rev_str='(ADD)'
+        else:
+            rev_str=str(filediff.source_revision)
+ 
+        return 'revision %s' % rev_str
+ 
     def normalize_path_for_display(self, filename):
         return filename
 
