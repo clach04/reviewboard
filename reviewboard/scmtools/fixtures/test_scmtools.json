@@ -40,6 +40,11 @@
      "fields": {"name": "ClearCase",
                 "class_name": "reviewboard.scmtools.clearcase.ClearCaseTool"
                }
+    {"pk": "8",
+     "model": "scmtools.tool",
+     "fields": {"name": "Piccolo",
+                "class_name": "reviewboard.scmtools.piccolo.PiccoloTool"
+               }
     },
     {"pk": "1",
      "model": "scmtools.repository",
