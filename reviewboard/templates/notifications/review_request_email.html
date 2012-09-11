@@ -7,7 +7,11 @@
 <table bgcolor="#fefadf" width="100%" cellspacing="0" cellpadding="8" style="background-image: url('{{domain_method}}://{{domain}}{{MEDIA_URL}}rb/images/review_request_box_top_bg.png'); background-position: left top; background-repeat: repeat-x; border: 1px black solid;">
  <tr>
   <td>
+<div>
 
+SCMTOOL {{ review_request.repository.get_scmtool.scmtoolname }}
+
+</div>
 <div>Review request for {% reviewer_list review_request %}.</div>
 <div>By {{review_request.submitter|realname}}.</div>
 
@@ -37,11 +41,25 @@
 </table>
 {% endif %}{% endif %}
 
-<h1 style="color: #575012; font-size: 10pt; margin-top: 1.5em;">Description {% if changes %}{% if changes.description %} (updated){% endif %}{% endif %}</h1>
- <table width="100%" bgcolor="#ffffff" cellspacing="0" cellpadding="10" style="border: 1px solid #b8b5a0">
+{% if review_request.branch %}
+<h1 style="color: #575012; font-size: 10pt; margin-top: 1.5em;">Branch</h1>
+<table width="100%" bgcolor="#ffffff" cellspacing="0" cellpadding="10" style="border: 1px solid #b8b5a0">
  <tr>
   <td>
-   <pre style="margin: 0; padding: 0; {{precss}}">{{review_request.description}}</pre>
+   <pre style="margin: 0; padding: 0; {{precss}}">{{ review_request.branch }}</pre>
+  </td>
+ </tr>
+</table>
+{% endif %}
+
+<h1 style="color: #575012; font-size: 10pt; margin-top: 1.5em;">Description {% if changes %}{% if changes.summary or changes.description %} (updated){% endif %}{% endif %}</h1>
+<table width="100%" bgcolor="#ffffff" cellspacing="0" cellpadding="10" style="border: 1px solid #b8b5a0">
+ <tr>
+  <td>
+   <pre style="margin: 0; padding: 0; {{precss}}">Format before submission with:
+	!}fmt -w 70
+
+{{review_request.description}}</pre>
   </td>
  </tr>
 </table>
@@ -59,7 +77,7 @@
 
 {% ifnotequal review_request.bugs_closed "" %}
 <div style="margin-top: 1.5em;">
- <b style="color: #575012; font-size: 10pt; margin-top: 1.5em;">Bugs: </b>
+ <b style="color: #575012; font-size: 10pt; margin-top: 1.5em;">This addresses bug </b>
 {%  ifequal review_request.repository.bug_tracker "" %}
 {{review_request.get_bug_list|join:", "}}
 {%  else %}
@@ -79,6 +97,15 @@
 
 <p><a href="{{domain_method}}://{{domain}}{% url view_diff review_request.display_id %}" style="margin-left: 3em;">View Diff</a></p>
 
+{% if raw_diff %}
+<table width="100%" bgcolor="#ffffff" cellspacing="0" cellpadding="10" style="border: 1px solid #b8b5a0">
+ <tr>
+  <td>
+   <pre style="margin: 0; padding: 0; {{precss}}">{{ raw_diff }}</pre>
+  </td>
+ </tr>
+</table>
+{% endif %}
 
 {% if review_request.screenshots.count %}
 <h1 style="color: #575012; font-size: 10pt; margin-top: 1.5em;">Screenshots {% if changes and changes.screenshots %}(updated){% endif %}</h1>

@@ -1074,6 +1074,7 @@ def get_diff_files(diffset, filediff=None, interdiffset=None):
             'newfile': newfile,
             'index': len(files),
             'chunks_loaded': False,
+	    'formatted_revision': tool.format_revision(filediff),
         })
 
     def cmp_file(x, y):

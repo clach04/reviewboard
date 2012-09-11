@@ -126,5 +126,11 @@
 			"path": "scmtools/testdata/hg_repo",
 			"password": ""
 		}
-	}
+	},
+    {"pk": "8",
+     "model": "scmtools.tool",
+     "fields": {"name": "Piccolo",
+                "class_name": "reviewboard.scmtools.piccolo.PiccoloTool"
+               }
+    }
 ]

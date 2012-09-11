@@ -14,6 +14,12 @@ from reviewboard.reviews.signals import review_request_published, \
                                         review_published, reply_published
 from reviewboard.reviews.views import build_diff_comment_fragments
 
+import zipfile
+import gzip
+try:
+    import cStringIO as StringIO
+except ImportError:
+    import StringIO
 
 def review_request_published_cb(sender, user, review_request, changedesc,
                                 **kwargs):
@@ -141,10 +147,43 @@ class SpiffyEmailMessage(EmailMultiAlternatives):
         """Returns a list of all recipients of the e-mail. """
         return self.to + self.bcc + self.cc
 
+def zip_diff(diff):
+    imf = StringIO.StringIO()
+    zf = zipfile.ZipFile(imf, "a", zipfile.ZIP_DEFLATED, False)
+      
+    # Write the diff to the in-memory zip
+    zf.writestr('diff.diff', diff)
+      
+    # Mark the files as having been created on Windows so that
+    # Unix permissions are not inferred as 0000
+    for zfile in zf.filelist:
+        zfile.create_system = 0       
+      
+    zf.close()
+
+    # rewind and return the zipped string
+    imf.seek(0)
+    ret = imf.read()
+    imf.close()
+    return ret
+
+def gzip_diff(diff):
+    imf = StringIO.StringIO()
+    gzf = gzip.GzipFile('diff.diff', mode = 'a', fileobj = imf)
+      
+    # Write the diff to the in-memory zip
+    gzf.write(diff)
+    gzf.flush()
+      
+    # rewind and return the zipped string
+    imf.seek(0)
+    ret = imf.read()
+    gzf.close()
+    return ret
 
 def send_review_mail(user, review_request, subject, in_reply_to,
                      extra_recipients, text_template_name,
-                     html_template_name, context={}):
+                     html_template_name, context={}, include_raw_diff=False):
     """
     Formats and sends an e-mail out with the current domain and review request
     being added to the template context. Returns the resulting message ID.
@@ -192,6 +231,45 @@ def send_review_mail(user, review_request, subject, in_reply_to,
     if review_request.local_site:
         context['local_site_name'] = review_request.local_site.name
 
+    # should really (add to) repository and add include raw diffs option
+    # for now check scm type or always do it!
+    #include_raw_diff=False ## DEBUG FIXME REMOVE!
+    ## NOTE ea-ip list does appear to retain (diff) attachments see http://lists.ingres.prv/mailman/private/ip-ea/2008-October/001279.html
+    ## test list does NOT!
+    attachment_message='Diffs attached'
+    emaildiffs_inline=True ## if False make an attachment
+    emaildiffs_zipped=False ## if True attach as zip
+    context['raw_diff']=''
+    #context['raw_diff']='debug raw diff FIXME REMOVE'
+    if include_raw_diff:
+        ## Other option, instead of a flag "include_raw_diff" could lazy evaluate
+        ## http://pyds.muensterland.org/ has a nice short one (only needs minor cleanup, and I already have a cleaned up copy)
+        diffset = review_request.diffset_history.diffsets.latest()
+        raw_diff = review_request.repository.get_scmtool().get_parser('').raw_diff(diffset)
+        if emaildiffs_inline and isinstance(raw_diff, str):
+            try:
+                _ = raw_diff.decode('us-ascii') # could check repository encoding type......
+            except UnicodeDecodeError:
+                # non-ASCII data in diff, email is (probably) utf8 and
+                # so will not display inline. Switch to an attachment
+                emaildiffs_inline=False ## if False make an attachment
+                attachment_message='Diffs contain non-ASCII characters/bytes, unable to determine encoding. See attachment.'
+            ## Check size of diff, if it's over 100K, zip and attach
+            max_diff_sz = 200 * 1024
+            if len(raw_diff) > max_diff_sz:
+               emaildiffs_zipped = True
+               emaildiffs_inline = False
+               include_raw_diff = True
+               attachment_message = 'Diffs too large to display, see attachment.'
+        if emaildiffs_inline:
+            context['raw_diff']=raw_diff
+        else:
+            # attach
+            context['raw_diff']=attachment_message
+
+
+    # Ingres customization goes here, e.g. raw diffs, facilities...
+
     text_body = render_to_string(text_template_name, context)
     html_body = render_to_string(html_template_name, context)
 
@@ -227,6 +305,14 @@ def send_review_mail(user, review_request, subject, in_reply_to,
     message = SpiffyEmailMessage(subject.strip(), text_body, html_body,
                                  from_email, sender, list(to_field),
                                  list(cc_field), in_reply_to, headers)
+
+    if include_raw_diff and not emaildiffs_inline:
+        if emaildiffs_zipped:
+            zipped_diff = zip_diff(raw_diff)
+            message.attach('diff.zip', zipped_diff, 'application/zip')
+        else:
+            message.attach('diff.diff', raw_diff, 'text/x-diff')
+
     try:
         message.send()
     except Exception, e:
@@ -280,7 +366,7 @@ def mail_review_request(user, review_request, changedesc=None):
                          extra_recipients,
                          'notifications/review_request_email.txt',
                          'notifications/review_request_email.html',
-                         extra_context)
+                         extra_context, include_raw_diff=True)
     review_request.save()
 
 
