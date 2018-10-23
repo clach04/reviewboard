@@ -54,6 +54,43 @@ PICCOLO_DELETEDMISSING_FILES_TEXT=": local file missing - can't diff" ## example
 PICCOLO_DIFF_SEPERATOR='\n' ## Suggestion from AlexH, could be '' if no seperator
 PICCOLO_FILE_DELETED_TEXT = '0a1\n> /*** NOTE Reviewer - THIS FILE HAS BEEN DELETED NOTE ***/' # Uses words from pygments.CodeTagFilter so they show up in red (only works for recognised source code files)
 
+
+
+def parse_piccolo_url(url):
+    """Parse URL of form:
+        server:[port][/piccolo_lib]
+
+    Port is an integer
+    """
+    url = url.strip()
+    u = url.split('/')
+    server_port = u[0]
+    try:
+        piccolo_lib = u[1]
+    except IndexError:
+        piccolo_lib = None
+
+    u = server_port.split(':')
+    server = u[0]
+    try:
+        port = int(u[1])  # Expect port to be an integer if specfied
+    except IndexError:
+        port = None
+    except ValueError:
+        # not an integer, silently ignore
+        port = None
+
+    if not server:
+        server = None
+
+    if not piccolo_lib:
+        piccolo_lib = None
+
+    return (server, port, piccolo_lib)
+
+#local_parse_piccolo_url = pypiccolo.picparse.parse_piccolo_url
+local_parse_piccolo_url = parse_piccolo_url
+
 class PiccoloTool(SCMTool):
     name = 'Piccolo'
 
@@ -67,7 +104,9 @@ class PiccoloTool(SCMTool):
         this_function_name = sys._getframe().f_code.co_name
         if DebugPrint:  print 'CMCDEBUG PiccoloTool.%s()' % this_function_name
         if DebugPrint:  print 'CMCDEBUG args %r' % ((path, revision),)
-        p = pypiccolo.Piccolo()
+        if DebugPrint:  print 'CMCDEBUG repo %r' % ((self.repository.path, self.repository),)
+        server, port, piccolo_lib = local_parse_piccolo_url(self.repository.path)
+        p = pypiccolo.Piccolo(servername=server, serverport=port, piccolo_lib=piccolo_lib)
         fileptr = StringIO.StringIO()
         picpath, picname = path.split()
         x=None
@@ -108,6 +147,7 @@ class PiccoloTool(SCMTool):
         raise SCMError('piccolo.NotImplemented ' + this_function_name)
 
     def get_repository_info(self):
+        # FIXME do something with self.repository - looks like need to return a dict?
         this_function_name = sys._getframe().f_code.co_name
         raise SCMError('piccolo.NotImplemented ' + this_function_name)
 
